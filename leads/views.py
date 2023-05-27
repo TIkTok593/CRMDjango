@@ -71,6 +71,9 @@ class LeadCreateView(OragnizerAndLoginRequiredMixin, generic.CreateView):
         return reverse('leads:lead-list')
     
     def form_valid(self, form):
+        lead = form.save(commit=False)
+        lead.organization = self.request.user.userprofile
+        lead.save()
         send_mail(
             subject='Assalam Alikum',
             message='كيف حالك',

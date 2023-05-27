@@ -4,7 +4,16 @@ from .models import Lead, Agent, User
 class LeadForm(forms.ModelForm):
     class Meta:
         model = Lead
-        fields = '__all__'
+        fields = (
+            "first_name",
+            "second_name",
+            "age",
+            "agent",
+            "category",
+            "description",
+            "phone_number",
+            "email",
+        )
 
 
 class AssignAgentForm(forms.Form):
