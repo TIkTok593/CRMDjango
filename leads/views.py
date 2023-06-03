@@ -1,15 +1,22 @@
+import logging
 from typing import Any, Dict
 from django.core.mail import send_mail
 from django.db import models
 from django.db.models.query import QuerySet
+from django.forms.models import BaseModelForm
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.urls import reverse
+from django.http.response import JsonResponse
 from django.http import HttpResponse
 from django.views import generic
-from .models import Lead, Agent, Category
-from .forms import LeadForm, AssignAgentForm, LeadCategoryUpdateForm, SignupModelForm
+from .models import Lead, Agent, Category, Followup
+from .forms import LeadForm, AssignAgentForm, LeadCategoryUpdateForm, SignupModelForm, FollowupCreateForm
 from .mixins import OragnizerAndLoginRequiredMixin
+
+
+logger = logging.getLogger(__name__)
 
 
 class SignupView(generic.CreateView):
@@ -34,6 +41,7 @@ class LeadListView(LoginRequiredMixin, generic.ListView):
         else:
             leads = Lead.objects.filter(organization=user.agent.organization, agent__isnull=False)
             leads = leads.filter(agent__user=user)
+        logger.warning('This is an invalid action')
         return leads  # by default this will be passed to the template with object_list => because it's a list view
     
     def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
@@ -82,6 +90,7 @@ class LeadCreateView(OragnizerAndLoginRequiredMixin, generic.CreateView):
                 'abdlearning593@gmail.com'
             ]
         )
+        messages.success(self.request, 'You have successfully created a lead')
         return super(LeadCreateView, self).form_valid(form)
 
 
@@ -200,4 +209,55 @@ class LeadCategoryUpdateView(LoginRequiredMixin, generic.UpdateView):
     
     def get_success_url(self) -> str:
         return reverse('leads:lead-detail', kwargs={'pk': self.get_object().id})
+    
+    
+class LeadJsonView(generic.View):
+    def get(self, request, *args, **kwargs):
+        
+        qs = list(Lead.objects.all().values('first_name', 
+                                            'second_name',
+                                            'age'))
+        
+        return JsonResponse({
+            'name': qs
+        })
+        
+        
+class FollowupCreateView(LoginRequiredMixin, generic.CreateView):
+    template_name = 'leads/followup_create.html'
+    form_class = FollowupCreateForm
+    
+    def get_success_url(self) -> str:
+        return reverse('leads:lead-detail' ,kwargs={'pk': self.kwargs['pk']})
+    
+    def get_context_data(self, **kwargs: Any) -> Dict[str, Any]:
+        context = super(FollowupCreateView, self).get_context_data(**kwargs)
+        context.update({
+            'lead': Lead.objects.get(pk=self.kwargs['pk'])
+        })
+        return context
+    
+    def form_valid(self, form: BaseModelForm) -> HttpResponse:
+        lead = Lead.objects.get(pk=self.kwargs['pk'])
+        followup = form.save(commit=False)
+        followup.lead = lead
+        followup.save()        
+        return super(FollowupCreateView, self).form_valid(form)
+    
+class FollowupUpdateView(LoginRequiredMixin, generic.UpdateView):
+    template_name = 'leads/followup_update.html'
+    form_class = FollowupCreateForm
+    
+    def get_queryset(self) -> QuerySet[Any]:
+        user = self.request.user
+        
+        if user.is_organizer:
+            qs = Followup.objects.filter(lead__organization=user.userprofile)
+        else:
+            qs = Followup.objects.filter(lead_organization=user.agent.organization)
+            qs = qs.filter(lead__agent__user=user)
+        return qs
+
+    def get_success_url(self) -> str:
+        return reverse('leads:lead-detail', kwargs={'pk': self.get_object().lead.id})
     

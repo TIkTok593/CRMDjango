@@ -1,0 +1,1 @@
+print('ksadjflaks', 'skdafjlsak', sep='.')

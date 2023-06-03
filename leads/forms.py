@@ -1,5 +1,6 @@
 from django import forms
-from .models import Lead, Agent, User
+from django.core.exceptions import ValidationError
+from .models import Lead, Agent, User, Followup
 
 class LeadForm(forms.ModelForm):
     class Meta:
@@ -13,7 +14,21 @@ class LeadForm(forms.ModelForm):
             "description",
             "phone_number",
             "email",
+            'profile_image',
         )
+    
+    # def clean_first_name(self):
+    #     data = self.cleaned_data['first_name']
+    #     if data != 'Abdulrahman':
+    #         raise ValidationError('Your name is not Abdulrahman')
+    #     return data
+    
+    # def clean(self):
+    #     first_name = self.cleaned_data['first_name']
+    #     second_name = self.cleaned_data['second_name']
+    #     if f'{first_name} {second_name}' != 'Abdulrahman Diab':
+    #         raise ValidationError('Your full name is not Abdulrahman Diab')
+        
 
 
 class AssignAgentForm(forms.Form):
@@ -36,3 +51,13 @@ class SignupModelForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ('username', 'first_name', 'last_name', 'email')
+
+
+class FollowupCreateForm(forms.ModelForm):
+    class Meta:
+        model = Followup
+        fields = (
+            'notes',
+            'file',
+        )     
+        

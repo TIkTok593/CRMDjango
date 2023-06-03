@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models.query import QuerySet
 from django.db.models.signals import post_save
 
 
@@ -15,6 +16,15 @@ class UserProfile(models.Model):
         return self.user.username
 
 
+class LeadManager(models.Manager):
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset()
+    
+    
+    def get_lead_category_null(self):
+        return super().get_queryset().filter(category__isnull=True)    
+
+
 class Lead(models.Model):
     first_name = models.CharField(max_length=20)
     second_name = models.CharField(max_length=20)
@@ -26,10 +36,27 @@ class Lead(models.Model):
     date_added = models.DateTimeField(auto_now_add=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
-     
+    objects = LeadManager()
+    profile_image = models.ImageField(null=True, blank=True, upload_to='profile_picture/')
+    
+    
     def __str__(self):
         return f'{self.first_name} {self.second_name}'
     
+    
+def handle_upload_follow_ups(instance, filename):
+    return f'leads_followups/lead_{instance.lead.pk}/{filename}'
+    
+    
+class Followup(models.Model):
+    lead = models.ForeignKey(Lead, related_name= 'followups', on_delete=models.CASCADE)
+    date_added = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, null=True)
+    file = models.FileField(blank=True, null=True, upload_to=handle_upload_follow_ups)
+    
+    def __str__(self) -> str:
+        return f'{self.lead.first_name} {self.lead.second_name}'
+
 
 class Agent(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
